@@ -20,8 +20,8 @@ Use the relevant child repo when building or testing a specific Java implementat
 Typical shared build expectations:
 
 ```bash
-python3 kbuild/kbuild.py --help
-python3 kbuild/kbuild.py --batch --build-latest
+kbuild --help
+kbuild --batch --build-latest
 ```
 
 When additional Java tool repos are added to this workspace, this root becomes the natural entrypoint for Java-stack-wide documentation and coordination.

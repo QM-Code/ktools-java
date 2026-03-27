@@ -13,9 +13,11 @@ final class ApiTests {
 
     static void run() throws Exception {
         testFormatMessage();
+        testFormatMessageRejectsExtraAndBrokenTokens();
         testWarnLoggingOutput();
         testTraceOutput();
         testSelectorSemantics();
+        testTraceLoggerCannotAttachToDifferentLogger();
         testConflictingColorsRejected();
         testTraceChangedSuppressesDuplicates();
     }
@@ -42,6 +44,21 @@ final class ApiTests {
             IllegalArgumentException.class,
             () -> ktrace.internal.TraceInternals.formatMessage("{:x}", 7),
             "unsupported tokens should fail");
+    }
+
+    private static void testFormatMessageRejectsExtraAndBrokenTokens() {
+        Assertions.expectThrows(
+            IllegalArgumentException.class,
+            () -> ktrace.internal.TraceInternals.formatMessage("value", 7),
+            "extra arguments should fail");
+        Assertions.expectThrows(
+            IllegalArgumentException.class,
+            () -> ktrace.internal.TraceInternals.formatMessage("{", 7),
+            "unterminated open braces should fail");
+        Assertions.expectThrows(
+            IllegalArgumentException.class,
+            () -> ktrace.internal.TraceInternals.formatMessage("}", 7),
+            "unmatched close braces should fail");
     }
 
     private static void testWarnLoggingOutput() throws Exception {
@@ -98,6 +115,26 @@ final class ApiTests {
         logger.enableChannels("*.*.*.*");
         Assertions.expect(logger.shouldTraceChannel("tests.store.requests"), "depth3 wildcard should enable nested channel");
         Assertions.expect(!logger.shouldTraceChannel("tests.bad name"), "invalid names should never trace");
+
+        logger.enableChannel("tests.missing.child");
+        Assertions.expect(!logger.shouldTraceChannel("tests.missing.child"),
+            "unregistered exact channels should remain disabled");
+
+        logger.enableChannels("tests.missing.child");
+        Assertions.expect(!logger.shouldTraceChannel("tests.missing.child"),
+            "unresolved exact selectors in lists should remain disabled");
+    }
+
+    private static void testTraceLoggerCannotAttachToDifferentLogger() {
+        TraceLogger trace = new TraceLogger("tests");
+        Logger first = new Logger();
+        Logger second = new Logger();
+
+        first.addTraceLogger(trace);
+        Assertions.expectThrows(
+            IllegalArgumentException.class,
+            () -> second.addTraceLogger(trace),
+            "attaching one TraceLogger to multiple Logger instances should be rejected");
     }
 
     private static void testConflictingColorsRejected() {

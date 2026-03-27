@@ -1,19 +1,19 @@
-# ktrace-java
+# kcli-java
 
 Assume these have already been read:
 
 - `../../ktools/AGENTS.md`
 - `../AGENTS.md`
 
-`ktools-java/ktrace/` is the Java implementation of `ktrace`.
+`ktools-java/kcli/` is the Java implementation of `kcli`.
 
 ## What This Repo Owns
 
-This repo owns the Java API and implementation details for `ktrace`, including:
+This repo owns the Java API and implementation details for `kcli`, including:
 
-- public Java tracing/logging APIs
-- selector parsing and logger runtime behavior
-- `kcli` inline parser integration for trace controls
+- public Java parsing APIs
+- parser and inline-parser behavior
+- `kbuild` packaging for the Java SDK
 - Java demos and tests
 
 Cross-language conceptual behavior belongs to the `ktools/` overview docs. Java
@@ -32,7 +32,7 @@ When familiarizing yourself with this repo, read:
 
 - Use `kbuild` from the repo root.
 - Prefer end-to-end checks using the demo launchers under `demo/*/build/<slot>/`.
-- Keep tests explicit and focused on trace/runtime behavior.
+- Keep tests explicit and focused on parsing/runtime behavior.
 
 Useful commands:
 

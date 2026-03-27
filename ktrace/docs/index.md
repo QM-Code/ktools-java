@@ -62,8 +62,19 @@ appTrace.trace("app", "startup complete");
 
 ## Build And Explore
 
+`ktrace` depends on the sibling Java `kcli` SDK. If that SDK is not already
+built, start from the Java workspace root so both repos build in dependency
+order:
+
 ```bash
-python3 ../kbuild/kbuild.py --build-latest
+cd ..
+kbuild --batch --build-latest
+cd ktrace
+```
+
+```bash
+kbuild --help
+kbuild --build-latest
 ./build/latest/tests/run-tests
 ./demo/exe/core/build/latest/test --trace '*.*'
 ./demo/exe/omega/build/latest/test --trace '*.{net,io}'
