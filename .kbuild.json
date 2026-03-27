@@ -1,0 +1,16 @@
+{
+  "project": {
+      "title": "Karma Tools :: Java",
+    "id": "ktools_java"
+  },
+  "git": {
+    "url": "https://github.com/QM-Code/ktools-java",
+    "auth": "git@github.com:QM-Code/ktools-java.git"
+  },
+  "batch": {
+    "repos": [
+      "kcli",
+      "ktrace"
+    ]
+  }
+}

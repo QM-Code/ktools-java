@@ -1,0 +1,37 @@
+package ktrace.demo.core;
+
+import kcli.Parser;
+import ktrace.Logger;
+import ktrace.TraceColors;
+import ktrace.TraceLogger;
+import ktrace.demo.alpha.AlphaSdk;
+
+import static ktrace.demo.common.DemoSupport.withProgram;
+
+public final class Main {
+    private Main() {
+    }
+
+    public static void main(String[] args) {
+        Logger logger = new Logger();
+
+        TraceLogger trace = new TraceLogger("core");
+        trace.addChannel("app", TraceColors.color("BrightCyan"));
+        trace.addChannel("startup", TraceColors.color("BrightYellow"));
+
+        logger.addTraceLogger(trace);
+        logger.addTraceLogger(AlphaSdk.getTraceLogger());
+
+        logger.enableChannel(trace, ".app");
+        trace.trace("app", "core initialized local trace channels");
+
+        Parser parser = new Parser();
+        parser.addInlineParser(logger.makeInlineParser(trace));
+        String[] argv = withProgram("ktrace_demo_core", args);
+        parser.parseOrExit(argv.length, argv);
+
+        trace.trace("app", "cli processing enabled, use --trace for options");
+        trace.trace("startup", "testing imported tracing, use --trace '*.*' to view imported channels");
+        AlphaSdk.testTraceLoggingChannels();
+    }
+}

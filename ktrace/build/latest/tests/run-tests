@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec java -cp "/home/karmak/dev/ktools/ktools-java/ktrace/build/latest/tests/classes:/home/karmak/dev/ktools/ktools-java/ktrace/build/latest/sdk/classes:/home/karmak/dev/ktools/ktools-java/kcli/build/latest/sdk/classes:/home/karmak/dev/ktools/ktools-java/ktrace/demo/bootstrap/build/latest/classes:/home/karmak/dev/ktools/ktools-java/ktrace/demo/exe/core/build/latest/classes:/home/karmak/dev/ktools/ktools-java/ktrace/demo/exe/omega/build/latest/classes" ktrace.tests.TestMain "$@"
