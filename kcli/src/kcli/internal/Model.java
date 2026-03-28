@@ -14,34 +14,50 @@ enum ValueArity {
 }
 
 final class CommandBinding {
-    boolean expectsValue;
-    FlagHandler flagHandler;
-    ValueHandler valueHandler;
-    ValueArity valueArity = ValueArity.REQUIRED;
-    String description = "";
+    final boolean expectsValue;
+    final FlagHandler flagHandler;
+    final ValueHandler valueHandler;
+    final ValueArity valueArity;
+    final String description;
+
+    private CommandBinding(boolean expectsValue,
+                           FlagHandler flagHandler,
+                           ValueHandler valueHandler,
+                           ValueArity valueArity,
+                           String description) {
+        this.expectsValue = expectsValue;
+        this.flagHandler = flagHandler;
+        this.valueHandler = valueHandler;
+        this.valueArity = valueArity;
+        this.description = description;
+    }
+
+    static CommandBinding flag(FlagHandler handler, String description) {
+        return new CommandBinding(false, handler, null, ValueArity.REQUIRED, description);
+    }
+
+    static CommandBinding value(ValueHandler handler, String description, ValueArity arity) {
+        return new CommandBinding(true, null, handler, arity, description);
+    }
 
     CommandBinding copy() {
-        CommandBinding copy = new CommandBinding();
-        copy.expectsValue = expectsValue;
-        copy.flagHandler = flagHandler;
-        copy.valueHandler = valueHandler;
-        copy.valueArity = valueArity;
-        copy.description = description;
-        return copy;
+        return this;
     }
 }
 
 final class AliasBinding {
-    String alias = "";
-    String targetToken = "";
-    List<String> presetTokens = new ArrayList<>();
+    final String alias;
+    final String targetToken;
+    final List<String> presetTokens;
+
+    AliasBinding(String alias, String targetToken, List<String> presetTokens) {
+        this.alias = alias;
+        this.targetToken = targetToken;
+        this.presetTokens = List.copyOf(presetTokens);
+    }
 
     AliasBinding copy() {
-        AliasBinding copy = new AliasBinding();
-        copy.alias = alias;
-        copy.targetToken = targetToken;
-        copy.presetTokens = new ArrayList<>(presetTokens);
-        return copy;
+        return this;
     }
 }
 

@@ -92,5 +92,5 @@ appTrace.trace("app", "core initialized");
 ```java
 kcli.Parser parser = new kcli.Parser();
 parser.addInlineParser(logger.makeInlineParser(appTrace));
-parser.parseOrExit(argv.length, argv);
+parser.parseOrExit(args);
 ```

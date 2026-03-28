@@ -12,6 +12,19 @@ import ktrace.internal.TraceInternals.SelectorResolution;
 import ktrace.internal.TraceInternals.TraceLoggerData;
 
 public final class Logger {
+    private enum ChannelAction {
+        ENABLE("enable", "enabled"),
+        DISABLE("disable", "disabled");
+
+        private final String verb;
+        private final String pastTense;
+
+        ChannelAction(String verb, String pastTense) {
+            this.verb = verb;
+            this.pastTense = pastTense;
+        }
+    }
+
     private final LoggerData data;
     private final TraceLogger internalTrace;
 
@@ -77,7 +90,7 @@ public final class Logger {
     public void setOutputOptions(OutputOptions options) {
         TraceInternals.setOutputOptions(data, options);
         internalTrace.trace("api", "updating output options (enable api.output for details)");
-        OutputOptions next = getOutputOptions();
+        OutputOptions next = TraceInternals.getOutputOptions(data);
         internalTrace.trace("api.output",
             "set output options: filenames={} line_numbers={} function_names={} timestamps={}",
             next.filenames(),
@@ -104,65 +117,20 @@ public final class Logger {
 
     public InlineParser makeInlineParser(TraceLogger localTraceLogger, String traceRoot) {
         String localNamespace = localTraceLogger == null ? "" : localTraceLogger.getNamespace();
-
         InlineParser parser = new InlineParser(traceRoot == null || traceRoot.isBlank() ? "trace" : traceRoot);
-        parser.setRootValueHandler((context, value) -> enableChannels(value, localNamespace),
-            "<channels>",
-            "Trace selected channels.");
-        parser.setHandler("-examples", this::handleExamples, "Show selector examples.");
-        parser.setHandler("-namespaces", context -> handleNamespaces(), "Show initialized trace namespaces.");
-        parser.setHandler("-channels", context -> handleChannels(), "Show initialized trace channels.");
-        parser.setHandler("-colors", context -> handleColors(), "Show available trace colors.");
-        parser.setHandler("-files", context -> setOutputOptions(new OutputOptions(true, true, false, getOutputOptions().timestamps())),
-            "Include source file and line in trace output.");
-        parser.setHandler("-functions", context -> setOutputOptions(new OutputOptions(true, true, true, getOutputOptions().timestamps())),
-            "Include function names in trace output.");
-        parser.setHandler("-timestamps", context -> {
-            OutputOptions options = getOutputOptions();
-            setOutputOptions(new OutputOptions(options.filenames(), options.lineNumbers(), options.functionNames(), true));
-        }, "Include timestamps in trace output.");
+        parser.setRootValueHandler((context, value) -> applySelectorChange(ChannelAction.ENABLE, value, localNamespace),
+            "<channels>", "Trace selected channels.");
+        registerCliInfoHandlers(parser);
+        registerCliFormattingHandlers(parser);
         return parser;
     }
 
     private void enableChannel(String qualifiedChannel, String localNamespace) {
-        TraceInternals.ExactChannelResolution resolution =
-            TraceInternals.resolveExactChannel(data, qualifiedChannel, localNamespace);
-        if (!resolution.registered()) {
-            log(LogSeverity.WARNING,
-                localNamespace,
-                TraceInternals.captureCallSite(),
-                TraceInternals.formatMessage("enable ignored channel '{}' because it is not registered",
-                    resolution.key()));
-            return;
-        }
-
-        TraceInternals.enableChannelKeys(data, List.of(resolution.key()));
-        internalTrace.trace("api.channels", "enabled channel '{}'", TraceInternals.trimWhitespace(qualifiedChannel));
+        applyExactChannelChange(ChannelAction.ENABLE, qualifiedChannel, localNamespace);
     }
 
     private void enableChannels(String selectorsCsv, String localNamespace) {
-        String selectorText = TraceInternals.trimWhitespace(selectorsCsv);
-        SelectorResolution resolution = TraceInternals.resolveSelectorExpression(data, selectorText, localNamespace);
-        TraceInternals.enableChannelKeys(data, resolution.channelKeys());
-        CallSite callSite = TraceInternals.captureCallSite();
-        for (String unmatched : resolution.unmatchedSelectors()) {
-            log(LogSeverity.WARNING,
-                localNamespace,
-                callSite,
-                TraceInternals.formatMessage(
-                    "enable ignored channel selector '{}' because it matched no registered channels",
-                    unmatched));
-        }
-
-        internalTrace.trace("api",
-            "processing channels (enable api.channels for details): enabled {} channel(s), {} unmatched selector(s)",
-            resolution.channelKeys().size(),
-            resolution.unmatchedSelectors().size());
-        internalTrace.trace("api.channels",
-            "enabled {} channel(s) from '{}' ({} unmatched selector(s))",
-            resolution.channelKeys().size(),
-            selectorText,
-            resolution.unmatchedSelectors().size());
+        applySelectorChange(ChannelAction.ENABLE, selectorsCsv, localNamespace);
     }
 
     private boolean shouldTraceChannel(String qualifiedChannel, String localNamespace) {
@@ -170,48 +138,96 @@ public final class Logger {
     }
 
     private void disableChannel(String qualifiedChannel, String localNamespace) {
+        applyExactChannelChange(ChannelAction.DISABLE, qualifiedChannel, localNamespace);
+    }
+
+    private void disableChannels(String selectorsCsv, String localNamespace) {
+        applySelectorChange(ChannelAction.DISABLE, selectorsCsv, localNamespace);
+    }
+
+    private void log(LogSeverity severity, String traceNamespace, CallSite callSite, String message) {
+        TraceInternals.emitLog(data, traceNamespace, severity, callSite, message);
+    }
+
+    private void applyExactChannelChange(ChannelAction action,
+                                         String qualifiedChannel,
+                                         String localNamespace) {
         TraceInternals.ExactChannelResolution resolution =
             TraceInternals.resolveExactChannel(data, qualifiedChannel, localNamespace);
         if (!resolution.registered()) {
             log(LogSeverity.WARNING,
                 localNamespace,
                 TraceInternals.captureCallSite(),
-                TraceInternals.formatMessage("disable ignored channel '{}' because it is not registered",
+                TraceInternals.formatMessage("{} ignored channel '{}' because it is not registered",
+                    action.verb,
                     resolution.key()));
             return;
         }
 
-        TraceInternals.disableChannelKeys(data, List.of(resolution.key()));
-        internalTrace.trace("api.channels", "disabled channel '{}'", TraceInternals.trimWhitespace(qualifiedChannel));
+        applyChannelKeys(action, List.of(resolution.key()));
+        internalTrace.trace("api.channels", "{} channel '{}'", action.pastTense, TraceInternals.trimWhitespace(qualifiedChannel));
     }
 
-    private void disableChannels(String selectorsCsv, String localNamespace) {
+    private void applySelectorChange(ChannelAction action,
+                                     String selectorsCsv,
+                                     String localNamespace) {
         String selectorText = TraceInternals.trimWhitespace(selectorsCsv);
         SelectorResolution resolution = TraceInternals.resolveSelectorExpression(data, selectorText, localNamespace);
-        TraceInternals.disableChannelKeys(data, resolution.channelKeys());
+        applyChannelKeys(action, resolution.channelKeys());
+
         CallSite callSite = TraceInternals.captureCallSite();
         for (String unmatched : resolution.unmatchedSelectors()) {
             log(LogSeverity.WARNING,
                 localNamespace,
                 callSite,
                 TraceInternals.formatMessage(
-                    "disable ignored channel selector '{}' because it matched no registered channels",
+                    "{} ignored channel selector '{}' because it matched no registered channels",
+                    action.verb,
                     unmatched));
         }
 
         internalTrace.trace("api",
-            "processing channels (enable api.channels for details): disabled {} channel(s), {} unmatched selector(s)",
+            "processing channels (enable api.channels for details): {} {} channel(s), {} unmatched selector(s)",
+            action.pastTense,
             resolution.channelKeys().size(),
             resolution.unmatchedSelectors().size());
         internalTrace.trace("api.channels",
-            "disabled {} channel(s) from '{}' ({} unmatched selector(s))",
+            "{} {} channel(s) from '{}' ({} unmatched selector(s))",
+            action.pastTense,
             resolution.channelKeys().size(),
             selectorText,
             resolution.unmatchedSelectors().size());
     }
 
-    private void log(LogSeverity severity, String traceNamespace, CallSite callSite, String message) {
-        TraceInternals.emitLog(data, traceNamespace, severity, callSite, message);
+    private void applyChannelKeys(ChannelAction action, List<String> channelKeys) {
+        if (action == ChannelAction.ENABLE) {
+            TraceInternals.enableChannelKeys(data, channelKeys);
+            return;
+        }
+        TraceInternals.disableChannelKeys(data, channelKeys);
+    }
+
+    private void registerCliInfoHandlers(InlineParser parser) {
+        parser.setHandler("-examples", this::handleExamples, "Show selector examples.");
+        parser.setHandler("-namespaces", context -> handleNamespaces(), "Show initialized trace namespaces.");
+        parser.setHandler("-channels", context -> handleChannels(), "Show initialized trace channels.");
+        parser.setHandler("-colors", context -> handleColors(), "Show available trace colors.");
+    }
+
+    private void registerCliFormattingHandlers(InlineParser parser) {
+        parser.setHandler("-files", context -> updateOutputOptions(options ->
+            new OutputOptions(true, true, false, options.timestamps())),
+            "Include source file and line in trace output.");
+        parser.setHandler("-functions", context -> updateOutputOptions(options ->
+            new OutputOptions(true, true, true, options.timestamps())),
+            "Include function names in trace output.");
+        parser.setHandler("-timestamps", context -> updateOutputOptions(options ->
+            new OutputOptions(options.filenames(), options.lineNumbers(), options.functionNames(), true)),
+            "Include timestamps in trace output.");
+    }
+
+    private void updateOutputOptions(java.util.function.UnaryOperator<OutputOptions> update) {
+        setOutputOptions(update.apply(getOutputOptions()));
     }
 
     private void handleExamples(HandlerContext context) {

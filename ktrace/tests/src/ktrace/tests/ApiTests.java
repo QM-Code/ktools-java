@@ -1,6 +1,9 @@
 package ktrace.tests;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 
 import ktrace.Logger;
 import ktrace.OutputOptions;
@@ -20,6 +23,7 @@ final class ApiTests {
         testTraceLoggerCannotAttachToDifferentLogger();
         testConflictingColorsRejected();
         testTraceChangedSuppressesDuplicates();
+        testTraceChangedThreadSafety();
     }
 
     private static void testFormatMessage() {
@@ -175,5 +179,48 @@ final class ApiTests {
 
     private static void emitChanged(TraceLogger trace, String key) {
         trace.traceChanged("changed", key, "changed");
+    }
+
+    private static void testTraceChangedThreadSafety() throws Exception {
+        Logger logger = new Logger();
+        TraceLogger trace = new TraceLogger("tests");
+        trace.addChannel("changed");
+        logger.addTraceLogger(trace);
+
+        final int threadCount = 8;
+        final int iterationsPerThread = 20_000;
+        CountDownLatch ready = new CountDownLatch(threadCount);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        List<Thread> workers = new ArrayList<>();
+
+        for (int threadIndex = 0; threadIndex < threadCount; ++threadIndex) {
+            final int workerIndex = threadIndex;
+            Thread worker = new Thread(() -> {
+                ready.countDown();
+                try {
+                    start.await();
+                    for (int iteration = 0; iteration < iterationsPerThread; ++iteration) {
+                        emitChanged(trace, workerIndex + ":" + (iteration & 1));
+                    }
+                } catch (Throwable ex) {
+                    failure.compareAndSet(null, ex);
+                }
+            }, "trace-changed-" + threadIndex);
+            workers.add(worker);
+            worker.start();
+        }
+
+        ready.await();
+        start.countDown();
+
+        for (Thread worker : workers) {
+            worker.join();
+        }
+
+        Throwable error = failure.get();
+        if (error != null) {
+            throw new AssertionError("traceChanged should remain safe under concurrent updates", error);
+        }
     }
 }

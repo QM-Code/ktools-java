@@ -1,5 +1,8 @@
 package kcli.internal;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import kcli.FlagHandler;
 import kcli.PositionalHandler;
 import kcli.ValueHandler;
@@ -67,12 +70,11 @@ public final class Registration {
                                 String... presetTokens) {
         String normalizedAlias = Normalization.normalizeAliasOrThrow(alias);
         String normalizedTarget = Normalization.normalizeAliasTargetOptionOrThrow(target);
-        AliasBinding binding = new AliasBinding();
-        binding.alias = normalizedAlias;
-        binding.targetToken = normalizedTarget;
+        List<String> normalizedPresetTokens = new ArrayList<>();
         for (String token : presetTokens) {
-            binding.presetTokens.add(token);
+            normalizedPresetTokens.add(token);
         }
+        AliasBinding binding = new AliasBinding(normalizedAlias, normalizedTarget, normalizedPresetTokens);
         data.aliases.put(normalizedAlias, binding);
     }
 
@@ -119,12 +121,7 @@ public final class Registration {
         if (handler == null) {
             throw new IllegalArgumentException("kcli flag handler must not be empty");
         }
-
-        CommandBinding binding = new CommandBinding();
-        binding.expectsValue = false;
-        binding.flagHandler = handler;
-        binding.description = Normalization.normalizeDescriptionOrThrow(description);
-        return binding;
+        return CommandBinding.flag(handler, Normalization.normalizeDescriptionOrThrow(description));
     }
 
     private static CommandBinding makeValueBinding(ValueHandler handler,
@@ -133,12 +130,6 @@ public final class Registration {
         if (handler == null) {
             throw new IllegalArgumentException("kcli value handler must not be empty");
         }
-
-        CommandBinding binding = new CommandBinding();
-        binding.expectsValue = true;
-        binding.valueHandler = handler;
-        binding.valueArity = arity;
-        binding.description = Normalization.normalizeDescriptionOrThrow(description);
-        return binding;
+        return CommandBinding.value(handler, Normalization.normalizeDescriptionOrThrow(description), arity);
     }
 }
