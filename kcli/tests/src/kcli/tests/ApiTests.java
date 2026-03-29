@@ -21,6 +21,7 @@ final class ApiTests {
         testAliasPresetTokensSatisfyRequiredValue();
         testAliasPresetTokensApplyToInlineRootValue();
         testAliasPresetTokensRejectedForFlags();
+        testAliasDoesNotRewriteRequiredValueTokens();
         testParserCanBeReusedAcrossParses();
         testAliasValidation();
         testPositionalHandlerRequiresNonEmpty();
@@ -32,6 +33,7 @@ final class ApiTests {
         testInlineRootValueHelpRowPrints();
         testInlineRootValueJoinsTokens();
         testMissingInlineRootValueHandlerErrors();
+        testOptionalValueAllowsMissingValue();
         testOptionalValueAcceptsExplicitEmptyValue();
         testFlagHandlerDoesNotConsumeFollowingToken();
         testRequiredValueRejectsMissingValue();
@@ -172,6 +174,24 @@ final class ApiTests {
 
         Assertions.expectEquals(error.option(), "-v", "error should surface the alias token");
         Assertions.expectContains(error.getMessage(), "does not accept values", "error should explain flag preset rejection");
+    }
+
+    private static void testAliasDoesNotRewriteRequiredValueTokens() {
+        String[] argv = {"prog", "--output", "-v"};
+        final boolean[] verbose = {false};
+        final String[] output = {""};
+
+        Parser parser = new Parser();
+        parser.addAlias("-v", "--verbose");
+        parser.setHandler("--output", (context, captured) -> output[0] = captured, "Set output target.");
+        parser.setHandler("--verbose", context -> verbose[0] = true, "Enable verbose logging.");
+
+        parser.parseOrThrow(argv.length, argv);
+
+        Assertions.expect(!verbose[0], "alias-like required values should not dispatch alias handlers");
+        Assertions.expectEquals(output[0], "-v", "required values should preserve raw alias-like tokens");
+        Assertions.expectEquals(List.of(argv), List.of("prog", "--output", "-v"),
+            "parseOrThrow should leave argv unchanged when required values look like aliases");
     }
 
     private static void testParserCanBeReusedAcrossParses() {
@@ -352,6 +372,30 @@ final class ApiTests {
             "missing root value handlers should explain the failure");
     }
 
+    private static void testOptionalValueAllowsMissingValue() {
+        String[] argv = {"prog", "--build-enable"};
+        final boolean[] called = {false};
+        final String[] value = {"not-empty"};
+        final List<String> tokens = new ArrayList<>();
+
+        Parser parser = new Parser();
+        InlineParser build = new InlineParser("--build");
+        build.setOptionalValueHandler("-enable", (context, captured) -> {
+            called[0] = true;
+            value[0] = captured;
+            tokens.addAll(context.valueTokens());
+        }, "Enable build mode.");
+        parser.addInlineParser(build);
+
+        parser.parseOrThrow(argv.length, argv);
+
+        Assertions.expect(called[0], "optional value handlers should run when the value is omitted");
+        Assertions.expectEquals(value[0], "", "missing optional values should surface as empty strings");
+        Assertions.expectEquals(tokens, List.of(), "missing optional values should not invent token parts");
+        Assertions.expectEquals(List.of(argv), List.of("prog", "--build-enable"),
+            "parseOrThrow should leave argv unchanged for missing optional values");
+    }
+
     private static void testOptionalValueAcceptsExplicitEmptyValue() {
         String[] argv = {"prog", "--build-enable", ""};
         final String[] value = {null};
@@ -486,6 +530,8 @@ final class ApiTests {
 
         Assertions.expectEquals(error.option(), "--verbose", "handler failures should report the option");
         Assertions.expectContains(error.getMessage(), "option boom", "handler failures should preserve the message");
+        Assertions.expectContains(error.getMessage(), "--verbose",
+            "handler failures should include the effective option token");
     }
 
     private static void testPositionalHandlerExceptionBecomesCliError() {
@@ -556,16 +602,21 @@ final class ApiTests {
 
     private static void testDoubleDashRemainsUnknown() {
         String[] argv = {"prog", "--", "-v"};
+        final boolean[] verbose = {false};
         Parser parser = new Parser();
         parser.addAlias("-v", "--verbose");
-        parser.setHandler("--verbose", context -> {
-        }, "Enable verbose logging.");
+        parser.setHandler("--verbose", context -> verbose[0] = true, "Enable verbose logging.");
 
         CliError error = Assertions.expectThrows(
             CliError.class,
             () -> parser.parseOrThrow(argv.length, argv),
             "double dash should remain an unknown option");
 
+        Assertions.expect(!verbose[0], "handlers should not run before the unknown double dash fails the parse");
         Assertions.expectEquals(error.option(), "--", "double dash should be reported as the failing option");
+        Assertions.expectContains(error.getMessage(), "unknown option --",
+            "double dash should preserve the standard unknown-option message");
+        Assertions.expectEquals(List.of(argv), List.of("prog", "--", "-v"),
+            "parseOrThrow should leave argv unchanged when double dash fails before alias expansion");
     }
 }
