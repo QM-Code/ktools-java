@@ -36,14 +36,28 @@ Library code:
 
 ```java
 public final class AlphaSdk {
+    private static final class Holder {
+        private static final TraceLogger TRACE_LOGGER = buildTraceLogger();
+
+        private Holder() {
+        }
+
+        private static TraceLogger buildTraceLogger() {
+            TraceLogger logger = new TraceLogger("alpha");
+            logger.addChannel("net");
+            logger.addChannel("cache");
+            return logger;
+        }
+    }
+
     public static TraceLogger getTraceLogger() {
-        TraceLogger logger = new TraceLogger("alpha");
-        logger.addChannel("net");
-        logger.addChannel("cache");
-        return logger;
+        return Holder.TRACE_LOGGER;
     }
 }
 ```
+
+SDKs should expose a shared `TraceLogger` handle so executables and library code
+operate on the same registered channels.
 
 Executable code:
 

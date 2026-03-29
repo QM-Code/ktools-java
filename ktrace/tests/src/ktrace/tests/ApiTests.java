@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+import kcli.Parser;
 import ktrace.Logger;
 import ktrace.OutputOptions;
 import ktrace.TraceColors;
@@ -17,9 +18,14 @@ final class ApiTests {
     static void run() throws Exception {
         testFormatMessage();
         testFormatMessageRejectsExtraAndBrokenTokens();
+        testChannelRegistrationRules();
         testWarnLoggingOutput();
         testTraceOutput();
         testSelectorSemantics();
+        testLocalExactSelectorSemantics();
+        testSelectorListValidation();
+        testOutputOptionsNormalization();
+        testLoggerBoundInlineParser();
         testTraceLoggerCannotAttachToDifferentLogger();
         testConflictingColorsRejected();
         testTraceChangedSuppressesDuplicates();
@@ -63,6 +69,24 @@ final class ApiTests {
             IllegalArgumentException.class,
             () -> ktrace.internal.TraceInternals.formatMessage("}", 7),
             "unmatched close braces should fail");
+    }
+
+    private static void testChannelRegistrationRules() {
+        TraceLogger trace = new TraceLogger("tests");
+        trace.addChannel("net");
+        trace.addChannel("net");
+        trace.addChannel("net", TraceColors.color("Gold3"));
+        trace.addChannel("net", TraceColors.color("Gold3"));
+        trace.addChannel("net.alpha");
+
+        Assertions.expectThrows(
+            IllegalArgumentException.class,
+            () -> new TraceLogger("tests").addChannel("missing.child"),
+            "nested channels should require an existing parent");
+        Assertions.expectThrows(
+            IllegalArgumentException.class,
+            () -> trace.addChannel("net", TraceColors.color("Orange3")),
+            "conflicting duplicate channel colors should be rejected");
     }
 
     private static void testWarnLoggingOutput() throws Exception {
@@ -127,6 +151,81 @@ final class ApiTests {
         logger.enableChannels("tests.missing.child");
         Assertions.expect(!logger.shouldTraceChannel("tests.missing.child"),
             "unresolved exact selectors in lists should remain disabled");
+    }
+
+    private static void testLocalExactSelectorSemantics() {
+        Logger logger = new Logger();
+        TraceLogger trace = new TraceLogger("tests");
+        trace.addChannel("app");
+        trace.addChannel("deep");
+        trace.addChannel("deep.branch");
+        logger.addTraceLogger(trace);
+
+        logger.enableChannel(trace, ".app");
+        Assertions.expect(logger.shouldTraceChannel(trace, ".app"),
+            "local exact selectors should resolve against the supplied namespace");
+
+        logger.disableChannel(trace, ".app");
+        Assertions.expect(!logger.shouldTraceChannel(trace, ".app"),
+            "local exact disable should resolve against the supplied namespace");
+        Assertions.expect(!logger.shouldTraceChannel(trace, "*"),
+            "invalid exact selectors should return false in query APIs");
+
+        Assertions.expectThrows(
+            IllegalArgumentException.class,
+            () -> logger.enableChannel("*"),
+            "mutating exact-selector APIs should reject invalid selectors");
+    }
+
+    private static void testSelectorListValidation() {
+        Logger logger = new Logger();
+        TraceLogger trace = new TraceLogger("tests");
+        trace.addChannel("app");
+        trace.addChannel("deep");
+        trace.addChannel("deep.branch");
+        logger.addTraceLogger(trace);
+
+        logger.enableChannels(trace, ".app,.deep.branch");
+        Assertions.expect(logger.shouldTraceChannel("tests.app"),
+            "selector lists should support local exact selectors");
+        Assertions.expect(logger.shouldTraceChannel("tests.deep.branch"),
+            "selector lists should support local nested selectors");
+
+        logger.disableChannels("tests.deep.*");
+        Assertions.expect(!logger.shouldTraceChannel("tests.deep.branch"),
+            "disableChannels should apply selector-list matches");
+        Assertions.expect(logger.shouldTraceChannel("tests.app"),
+            "specific selector lists should not disable unmatched top-level channels");
+
+        Assertions.expectThrows(
+            IllegalArgumentException.class,
+            () -> logger.enableChannels(" "),
+            "empty selector lists should be rejected");
+    }
+
+    private static void testOutputOptionsNormalization() {
+        Logger logger = new Logger();
+        logger.setOutputOptions(new OutputOptions(false, true, true, true));
+
+        OutputOptions options = logger.getOutputOptions();
+        Assertions.expectEquals(options.filenames(), false, "filenames should remain disabled");
+        Assertions.expectEquals(options.lineNumbers(), false, "line numbers should be suppressed without filenames");
+        Assertions.expectEquals(options.functionNames(), false, "functions should be suppressed without filenames");
+        Assertions.expectEquals(options.timestamps(), true, "timestamps should remain independently configurable");
+    }
+
+    private static void testLoggerBoundInlineParser() throws Exception {
+        Logger logger = new Logger();
+        TraceLogger trace = new TraceLogger("tests");
+        trace.addChannel("app");
+        logger.addTraceLogger(trace);
+
+        Parser parser = new Parser();
+        parser.addInlineParser(logger.makeInlineParser(trace, "debug-trace"));
+        parser.parseOrThrow(new String[] {"--debug-trace", ".app"});
+
+        Assertions.expect(logger.shouldTraceChannel("tests.app"),
+            "custom trace roots should still bind local selectors to the supplied TraceLogger");
     }
 
     private static void testTraceLoggerCannotAttachToDifferentLogger() {

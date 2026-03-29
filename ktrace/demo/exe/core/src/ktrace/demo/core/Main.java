@@ -6,8 +6,6 @@ import ktrace.TraceColors;
 import ktrace.TraceLogger;
 import ktrace.demo.alpha.AlphaSdk;
 
-import static ktrace.demo.common.DemoSupport.withProgram;
-
 public final class Main {
     private Main() {
     }
@@ -33,5 +31,14 @@ public final class Main {
         trace.trace("app", "cli processing enabled, use --trace for options");
         trace.trace("startup", "testing imported tracing, use --trace '*.*' to view imported channels");
         AlphaSdk.testTraceLoggingChannels();
+    }
+
+    private static String[] withProgram(String programName, String[] args) {
+        String[] argv = new String[(args == null ? 0 : args.length) + 1];
+        argv[0] = programName;
+        if (args != null && args.length > 0) {
+            System.arraycopy(args, 0, argv, 1, args.length);
+        }
+        return argv;
     }
 }
