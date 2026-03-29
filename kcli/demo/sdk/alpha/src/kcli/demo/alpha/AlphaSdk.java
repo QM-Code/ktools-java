@@ -1,8 +1,9 @@
 package kcli.demo.alpha;
 
-import kcli.InlineParser;
+import java.util.stream.Collectors;
 
-import static kcli.demo.common.DemoSupport.printProcessingLine;
+import kcli.HandlerContext;
+import kcli.InlineParser;
 
 public final class AlphaSdk {
     private AlphaSdk() {
@@ -17,5 +18,23 @@ public final class AlphaSdk {
                                        (context, value) -> printProcessingLine(context, value),
                                        "Enable alpha processing.");
         return parser;
+    }
+
+    private static void printProcessingLine(HandlerContext context, String value) {
+        if (context.valueTokens().isEmpty()) {
+            System.out.println("Processing " + context.option());
+            return;
+        }
+
+        if (context.valueTokens().size() == 1) {
+            System.out.println("Processing " + context.option() + " with value \"" + value + "\"");
+            return;
+        }
+
+        String joined = context.valueTokens()
+            .stream()
+            .map(token -> "\"" + token + "\"")
+            .collect(Collectors.joining(","));
+        System.out.println("Processing " + context.option() + " with values [" + joined + "]");
     }
 }

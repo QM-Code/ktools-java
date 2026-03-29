@@ -41,3 +41,6 @@ kbuild --help
 kbuild --build-latest
 ./build/latest/tests/run-tests
 ```
+
+After a coherent batch of changes in `ktools-java/kcli/`, return to the
+`ktools-java/` workspace root and run `kbuild --git-sync "<message>"`.

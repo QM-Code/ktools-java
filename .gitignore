@@ -1,9 +1,5 @@
 # Build directories
-/build/
-/demo/**/build/
-/kcli/build/
-/kcli/demo/**/build/
-*.class
+build/
 
 # Python caches
 __pycache__/

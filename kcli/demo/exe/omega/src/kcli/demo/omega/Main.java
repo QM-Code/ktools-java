@@ -7,8 +7,6 @@ import kcli.demo.alpha.AlphaSdk;
 import kcli.demo.beta.BetaSdk;
 import kcli.demo.gamma.GammaSdk;
 
-import static kcli.demo.common.DemoSupport.withProgram;
-
 public final class Main {
     private Main() {
     }
@@ -57,5 +55,14 @@ public final class Main {
         System.out.println("  --beta");
         System.out.println("  --newgamma (gamma override)");
         System.out.println();
+    }
+
+    private static String[] withProgram(String programName, String[] args) {
+        String[] argv = new String[(args == null ? 0 : args.length) + 1];
+        argv[0] = programName;
+        if (args != null && args.length > 0) {
+            System.arraycopy(args, 0, argv, 1, args.length);
+        }
+        return argv;
     }
 }
