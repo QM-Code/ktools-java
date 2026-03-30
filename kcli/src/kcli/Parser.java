@@ -1,8 +1,6 @@
 package kcli;
 
-import kcli.internal.ParseEngine;
 import kcli.internal.ParserData;
-import kcli.internal.Registration;
 
 public final class Parser {
     private final ParserData data;
@@ -12,48 +10,48 @@ public final class Parser {
     }
 
     public void addAlias(String alias, String target) {
-        Registration.setAlias(data, alias, target);
+        data.setAlias(alias, target);
     }
 
     public void addAlias(String alias, String target, String... presetTokens) {
-        Registration.setAlias(data, alias, target, presetTokens);
+        data.setAlias(alias, target, presetTokens);
     }
 
     public void setHandler(String option,
                            FlagHandler handler,
                            String description) {
-        Registration.setPrimaryHandler(data, option, handler, description);
+        data.setPrimaryHandler(option, handler, description);
     }
 
     public void setHandler(String option,
                            ValueHandler handler,
                            String description) {
-        Registration.setPrimaryHandler(data, option, handler, description);
+        data.setPrimaryHandler(option, handler, description);
     }
 
     public void setOptionalValueHandler(String option,
                                         ValueHandler handler,
                                         String description) {
-        Registration.setPrimaryOptionalValueHandler(data, option, handler, description);
+        data.setPrimaryOptionalValueHandler(option, handler, description);
     }
 
     public void setPositionalHandler(PositionalHandler handler) {
-        Registration.setPositionalHandler(data, handler);
+        data.setPositionalHandler(handler);
     }
 
     public void addInlineParser(InlineParser parser) {
         if (parser == null) {
             throw new IllegalArgumentException("kcli inline parser must not be empty");
         }
-        Registration.addInlineParser(data, parser.snapshot());
+        data.addInlineParser(parser.snapshot());
     }
 
     public void parseOrExit(int argc, String[] argv) {
-        ParseEngine.parseOrExit(data, argc, argv);
+        data.parseOrExit(argc, argv);
     }
 
     public void parseOrThrow(int argc, String[] argv) {
-        ParseEngine.parse(data, argc, argv);
+        data.parse(argc, argv);
     }
 
     public void parseOrExit(String[] args) {

@@ -1,46 +1,45 @@
 package kcli;
 
 import kcli.internal.InlineParserData;
-import kcli.internal.Registration;
 
 public final class InlineParser {
     private final InlineParserData data;
 
     public InlineParser(String root) {
         this.data = new InlineParserData();
-        Registration.setInlineRoot(data, root);
+        data.setRoot(root);
     }
 
     public void setRoot(String root) {
-        Registration.setInlineRoot(data, root);
+        data.setRoot(root);
     }
 
     public void setRootValueHandler(ValueHandler handler) {
-        Registration.setRootValueHandler(data, handler);
+        data.setRootValueHandler(handler);
     }
 
     public void setRootValueHandler(ValueHandler handler,
                                     String valuePlaceholder,
                                     String description) {
-        Registration.setRootValueHandler(data, handler, valuePlaceholder, description);
+        data.setRootValueHandler(handler, valuePlaceholder, description);
     }
 
     public void setHandler(String option,
                            FlagHandler handler,
                            String description) {
-        Registration.setInlineHandler(data, option, handler, description);
+        data.setHandler(option, handler, description);
     }
 
     public void setHandler(String option,
                            ValueHandler handler,
                            String description) {
-        Registration.setInlineHandler(data, option, handler, description);
+        data.setHandler(option, handler, description);
     }
 
     public void setOptionalValueHandler(String option,
                                         ValueHandler handler,
                                         String description) {
-        Registration.setInlineOptionalValueHandler(data, option, handler, description);
+        data.setOptionalValueHandler(option, handler, description);
     }
 
     public InlineParser copy() {
