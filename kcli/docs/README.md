@@ -1,6 +1,6 @@
 # Docs
 
 This directory contains hand-written GitHub-friendly documentation for the Java
-`kcli` repo.
+`kcli` component.
 
 Start with [index.md](index.md).

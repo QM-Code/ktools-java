@@ -63,7 +63,7 @@ appTrace.trace("app", "startup complete");
 ## Build And Explore
 
 `ktrace` depends on the sibling Java `kcli` SDK. If that SDK is not already
-built, start from the Java workspace root so both repos build in dependency
+built, start from the Java workspace root so both components build in dependency
 order:
 
 ```bash

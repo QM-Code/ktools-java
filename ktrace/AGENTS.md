@@ -7,9 +7,9 @@ Assume these have already been read:
 
 `ktools-java/ktrace/` is the Java implementation of `ktrace`.
 
-## What This Repo Owns
+## What This Component Owns
 
-This repo owns the Java API and implementation details for `ktrace`, including:
+This component owns the Java API and implementation details for `ktrace`, including:
 
 - public Java tracing/logging APIs
 - selector parsing and logger runtime behavior
@@ -21,7 +21,7 @@ workspace concerns belong to `ktools-java/`.
 
 ## Local Bootstrap
 
-When familiarizing yourself with this repo, read:
+When familiarizing yourself with this component, read:
 
 - [README.md](README.md)
 - `src/*`
@@ -30,7 +30,7 @@ When familiarizing yourself with this repo, read:
 
 ## Build And Test Expectations
 
-- Use `kbuild` from the repo root.
+- Use `kbuild` from the component root.
 - Prefer end-to-end checks using the demo launchers under `demo/*/build/<slot>/`.
 - Keep tests explicit and focused on trace/runtime behavior.
 
